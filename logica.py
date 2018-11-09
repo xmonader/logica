@@ -126,11 +126,13 @@ def test_query_simple():
 def test_query_complex():
     facts = [ 
         ["woman", "nour"],
+        ["woman", "katia"],
         ["man", "jo"],
         ["man", "ahmed"],
         ["loves", "nour", "python"],
         ["loves", "ahmed", "python"],
         ["loves", "jo", "gevent"],
+        ["loves", "katia", "gevent"],
     ]
     clauses1 = [
         ["man", "?name"],
@@ -152,7 +154,10 @@ def test_query_complex():
     clauses6 = [
         ["loves", "?name", "python"]
     ]
-    for c in [clauses1, clauses2, clauses3, clauses4, clauses5, clauses6]:
+    clauses7 = [
+        ["loves", "?name", "gevent"]
+    ]
+    for c in [clauses1, clauses2, clauses3, clauses4, clauses5, clauses6, clauses7]:
         print("Query: ", c)
         print(query(facts, c))
 
