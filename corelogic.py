@@ -141,7 +141,9 @@ def test_query_complex():
     clauses4 = [
         ["bird", "?name"],
     ]
-
+    clauses5 = [
+        ["man", "?name"],
+    ]
     for c in [clauses1, clauses2, clauses3, clauses4]:
         print("Query: ", c)
         print(ask(facts, c))
