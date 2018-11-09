@@ -4,7 +4,6 @@ def isvar(x):
         return x.startswith("?")
     return False
 
-
 def unify(xs, ys, env=None):
     # [3 a 5] [y 7 z]  => {y:3 a:7 z:5}
     # 
@@ -35,43 +34,12 @@ def unify(xs, ys, env=None):
 
     return e == f and unify(xs[1:], ys[1:], env)
 
-def test_unify_simple():
-    l1 = [3, '?a', 5]
-    l2 = ['?y', 7, '?z']
-    print(unify(l1, l2))
-
-def test_unify_simple_with_env():
-    l1 = [3, '?a', '?z']
-    l2 = ['?y', 7, '?z']
-    print(unify(l1, l2, {'?z':16}))
-
-def test_unify_complex():
-    l1 = [ [3,5,6], '?x', ['?z', 5]]
-    l2 = [ '?j', 11, [24, 5]]
-    print(unify(l1, l2))
-
-
-def test_unify_very_complex():
-    l1 = ['?x', [5, '?z'], [0,[[4,5], 19]]]
-    l2 = [ 3, [5, 26], [0, ['?k', 19]] ]
-    print(unify(l1, l2))
-
-def test_dontunify_complex():
-    l1 = [ [3,5,6], '?x', [24, 5]]
-    l2 = [ '?j', 11]
-    print(unify(l1, l2))
-
-
 def rename_vars(clause, env):
-    # print("RENAMING .... ENV: ", env)
     newclause = clause[:]
     for i,el in enumerate(clause):
-        # print("   EL {} , ENV {} ".format(el, env))
         if el in env:
             newclause[i] = env[el]
-    # print("CLAUSE NOW: ", clause)
     return newclause
-
 
 def query(facts, clauses, env=None):
     results = []
@@ -117,6 +85,31 @@ def query(facts, clauses, env=None):
     ask(facts, clauses, env, 0, -1)
     return results
 
+def test_unify_simple():
+    l1 = [3, '?a', 5]
+    l2 = ['?y', 7, '?z']
+    print(unify(l1, l2))
+
+def test_unify_simple_with_env():
+    l1 = [3, '?a', '?z']
+    l2 = ['?y', 7, '?z']
+    print(unify(l1, l2, {'?z':16}))
+
+def test_unify_complex():
+    l1 = [ [3,5,6], '?x', ['?z', 5]]
+    l2 = [ '?j', 11, [24, 5]]
+    print(unify(l1, l2))
+
+
+def test_unify_very_complex():
+    l1 = ['?x', [5, '?z'], [0,[[4,5], 19]]]
+    l2 = [ 3, [5, 26], [0, ['?k', 19]] ]
+    print(unify(l1, l2))
+
+def test_dontunify_complex():
+    l1 = [ [3,5,6], '?x', [24, 5]]
+    l2 = [ '?j', 11]
+    print(unify(l1, l2))
 
 
 def test_query_simple():
@@ -128,7 +121,6 @@ def test_query_simple():
 
     clauses = [["man", "?name"],]
     print(query(facts, clauses))
-
 
 
 def test_query_complex():
@@ -163,8 +155,6 @@ def test_query_complex():
     for c in [clauses1, clauses2, clauses3, clauses4, clauses5, clauses6]:
         print("Query: ", c)
         print(query(facts, c))
-
-
 
 
 def main():
