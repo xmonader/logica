@@ -129,6 +129,7 @@ def test_query_complex():
         ["woman", "katia"],
         ["man", "jo"],
         ["man", "ahmed"],
+        ["cute", "ahmed"],
         ["loves", "nour", "python"],
         ["loves", "ahmed", "python"],
         ["loves", "jo", "gevent"],
@@ -139,7 +140,7 @@ def test_query_complex():
         ["loves", "khaled", "rust"],
         ["loves", "ahmed", "haskell"],
         ["man", "azmy"],
-        ["loves", "azmy", "go"]
+        ["loves", "azmy", "go"],
     ]
 
     clauses1 = [
@@ -171,7 +172,12 @@ def test_query_complex():
     clauses9 = [
         ["loves", "?name", "go"]
     ]
-    for c in [clauses1, clauses2, clauses3, clauses4, clauses5, clauses6, clauses7, clauses8, clauses9]:
+    clauses10 = [
+        ["man", "?name"],
+        ["cute", "?name"],
+        ["loves", "?name", "?lang"],
+    ]
+    for c in [clauses1, clauses2, clauses3, clauses4, clauses5, clauses6, clauses7, clauses8, clauses9, clauses10]:
         print("Query: ", c)
         print(query(facts, c))
 
