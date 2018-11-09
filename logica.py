@@ -133,7 +133,15 @@ def test_query_complex():
         ["loves", "ahmed", "python"],
         ["loves", "jo", "gevent"],
         ["loves", "katia", "gevent"],
+        ["loves", "andrew", "rust"],
+        ["man", "andrew"],
+        ["man", "khaled"],
+        ["loves", "khaled", "rust"],
+        ["loves", "ahmed", "haskell"],
+        ["man", "azmy"],
+        ["loves", "azmy", "go"]
     ]
+
     clauses1 = [
         ["man", "?name"],
         ["loves", "?name", "python"],
@@ -157,10 +165,15 @@ def test_query_complex():
     clauses7 = [
         ["loves", "?name", "gevent"]
     ]
-    for c in [clauses1, clauses2, clauses3, clauses4, clauses5, clauses6, clauses7]:
+    clauses8 = [
+        ["loves", "?name", "rust"]
+    ]
+    clauses9 = [
+        ["loves", "?name", "go"]
+    ]
+    for c in [clauses1, clauses2, clauses3, clauses4, clauses5, clauses6, clauses7, clauses8, clauses9]:
         print("Query: ", c)
         print(query(facts, c))
-
 
 def main():
     test_unify_simple()

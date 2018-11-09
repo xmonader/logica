@@ -90,7 +90,15 @@ def test_query_complex():
         ["loves", "ahmed", "python"],
         ["loves", "jo", "gevent"],
         ["loves", "katia", "gevent"],
+        ["loves", "andrew", "rust"],
+        ["man", "andrew"]
+        ["man", "khaled"],
+        ["loves", "khaled", "rust"],
+        ["loves", "ahmed", "haskell"]
+        ["man", "azmy"],
+        ["loves", "azmy", "go"]
     ]
+
     clauses1 = [
         ["man", "?name"],
         ["loves", "?name", "python"],
@@ -114,14 +122,19 @@ def test_query_complex():
     clauses7 = [
         ["loves", "?name", "gevent"]
     ]
-    for c in [clauses1, clauses2, clauses3, clauses4, clauses5, clauses6, clauses7]:
+    clauses8 = [
+        ["loves", "?name", "rust"]
+    ]
+    clauses9 = [
+        ["loves", "?name", "go"]
+    ]
+    for c in [clauses1, clauses2, clauses3, clauses4, clauses5, clauses6, clauses7, clauses8, clauses9]:
         print("Query: ", c)
         print(query(facts, c))
 
 ``` 
 
 ```bash
-
 Query:  [['man', '?name'], ['loves', '?name', 'python']]
 [{'?name': 'ahmed'}]
 Query:  [['man', '?name'], ['loves', '?name', 'gevent']]
@@ -131,9 +144,13 @@ Query:  [['woman', '?name']]
 Query:  [['bird', '?name']]
 []
 Query:  [['man', '?name']]
-[{'?name': 'jo'}, {'?name': 'ahmed'}]
+[{'?name': 'jo'}, {'?name': 'ahmed'}, {'?name': 'andrew'}, {'?name': 'khaled'}, {'?name': 'azmy'}]
 Query:  [['loves', '?name', 'python']]
 [{'?name': 'nour'}, {'?name': 'ahmed'}]
 Query:  [['loves', '?name', 'gevent']]
 [{'?name': 'jo'}, {'?name': 'katia'}]
-
+Query:  [['loves', '?name', 'rust']]
+[{'?name': 'andrew'}, {'?name': 'khaled'}]
+Query:  [['loves', '?name', 'go']]
+[{'?name': 'azmy'}]
+```
