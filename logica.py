@@ -7,12 +7,13 @@ def isvar(x):
 def unify(xs, ys, env=None):
     # [3 a 5] [y 7 z]  => {y:3 a:7 z:5}
     # 
+    # print("unifying xs {} and ys {} ".format(xs, ys))
     env = env or {}
     if len(xs) != len(ys):
-        return False
+        return {}
     elif xs == ys == []:
         return env
-
+    
     lhead = xs[0]
     rhead = ys[0]
     # print("UNIFYING X0: {} Y0: {}, ENV: {}".format(xs[0], ys[0],env))
@@ -67,7 +68,9 @@ def query(kb, queries, mainenv=None):
             ["loves", "azmy", "go"],
         ],
         'rules': [
-            ['alien', '?x',  ['man' '?x']]
+            
+            [ ['mortal', '?x'], ['man', '?x'] ],
+            [ ['mortal, '?x'],  ['woman', '?x']]
         ]
 
     }
@@ -125,7 +128,19 @@ def query(kb, queries, mainenv=None):
                     for potential_solution in ask(kb, renamed_clauses[cidx+1:], e):
                         # print(" potentil solution: ", potential_solution)
                         if satisfy(kb, renamed_clauses):
-                            yield potential_solution             
+                            yield potential_solution
+        subgoals = []
+        for rule in rules:
+            rule_head = rule[0]
+            rule_conditions = rule[1:]
+
+            for cidx, clause in enumerate(queries):
+                if clause[0] == rule_head[0]:
+                    subgoalenv = query(kb, rule_conditions, env)
+                    if subgoalenv:
+                        print(subgoalenv)
+                    # if subgoalenv:
+        # print(subgoals)
 
     print("MAIN", " queries: {} env: {} ".format(queries, mainenv))
 
@@ -244,6 +259,49 @@ def test_query_simple5():
     queries = [["man", "?name"], ["loves", "?name", "?girl"], ["woman", "?girl"]]
     print(query(kb, queries))
 
+def test_simple_rule():
+    kb = {
+        'facts': [ 
+            ["woman", "nour"],
+            ["man", "ahmed"],
+            ["man", "jo"],
+            ["man", "prince"],
+            ["loves", "ahmed", "python"],
+            ["loves", "ahmed", "nour" ],
+            ["loves", "jo", "gevent"],
+            ["loves", "jo", "python"],
+        ],
+        'rules':
+            [
+                [ ["mortal", "?x"], ["man", "?x"]],
+                [ ["mortal", "?x"], ["woman", "?x"]],
+            ]
+    }
+    queries = [ ["mortal", "ahmed"] ]
+    print(query(kb, queries))
+
+
+def test_simple_rule2():
+    kb = {
+        'facts': [ 
+            ["woman", "nour"],
+            ["man", "ahmed"],
+            ["man", "jo"],
+            ["man", "prince"],
+            ["loves", "ahmed", "python"],
+            ["loves", "ahmed", "nour" ],
+            ["loves", "jo", "gevent"],
+            ["loves", "jo", "python"],
+        ],
+        'rules':
+            [
+                [ ["mortal", "?x"], ["man", "?x"]],
+                [ ["mortal", "?x"], ["woman", "?x"]],
+            ]
+    }
+    queries = [ ["mortal", "?x"], ["loves", "?x", "gevent"] ]
+    print(query(kb, queries))
+
 
 def test_query_complex():
     kb = {
@@ -265,10 +323,6 @@ def test_query_complex():
             ["man", "azmy"],
             ["loves", "azmy", "go"],
         ],
-        'rules': [
-            ['alien', '?x',  ['man' '?x']]
-        ]
-
     } 
 
 
@@ -326,8 +380,10 @@ def main():
     test_query_simple3()
     test_query_simple4()
     test_query_simple5()
-
     test_query_complex()
+    test_simple_rule()
+    test_simple_rule2()
+
 
 if __name__ == '__main__':
     main()
