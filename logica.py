@@ -1,4 +1,4 @@
-
+DEPTH_LIMIT = 100
 def isvar(x):
     if isinstance(x, str):
         return x.startswith("?")
@@ -13,77 +13,128 @@ def unify(xs, ys, env=None):
     elif xs == ys == []:
         return env
 
-    # elif len(xs) > 0 and len(ys) > 0:
-    e = xs[0]
-    f = ys[0]
+    lhead = xs[0]
+    rhead = ys[0]
     # print("UNIFYING X0: {} Y0: {}, ENV: {}".format(xs[0], ys[0],env))
 
     # print("E {} and F {} and ENV {} ".format(e, f, env))
-    if isinstance(e, list) and isinstance(f, list):
-        return unify(e, f, env) and unify(xs[1:], ys[1:], env)
-    if isvar(e) and e not in env:
-        env[e] = f
-    elif isvar(f) and f not in env:
-        env[f] = e
+    if isinstance(lhead, list) and isinstance(rhead, list):
+        return unify(lhead, rhead, env) and unify(xs[1:], ys[1:], env)
+    if isvar(lhead) and lhead not in env:
+        env[lhead] = rhead
+    elif isvar(rhead) and rhead not in env:
+        env[rhead] = lhead
         
-    if isvar(e) and e in env:
-        return unify([env[e]], [f], env) and unify(xs[1:], ys[1:], env)
+    if isvar(lhead) and lhead in env:
+        return unify([env[lhead]], [rhead], env) and unify(xs[1:], ys[1:], env)
         
-    if isvar(f) and f in env:
-        return unify([env[f]], [e], env) and unify(xs[1:], ys[1:], env)
+    if isvar(rhead) and rhead in env:
+        return unify([env[rhead]], [lhead], env) and unify(xs[1:], ys[1:], env)
 
-    return e == f and unify(xs[1:], ys[1:], env)
+    return lhead == rhead and unify(xs[1:], ys[1:], env)
 
 def rename_vars(clause, env):
+    # print("renaming {} in env {}".format(clause, env))
     newclause = clause[:]
     for i,el in enumerate(clause):
         if el in env:
             newclause[i] = env[el]
     return newclause
 
-def query(facts, clauses, env=None):
-    results = []
-    def ask(facts, clauses, env=None, depth=0, originalclauseslen=-1):
-        import copy
-        
-        if originalclauseslen == -1:
-            originalclauseslen = len(clauses)
+def query(kb, queries, mainenv=None):
+    main = mainenv or {}
+    originalfacts = kb.get('facts', [])
+    originalrules = kb.get('rules', [])
 
-        # for fid, fact in enumerate(facts):
-        clausesinfo = {}
-        for cid, clause in enumerate(clauses):
-            choices = []
+    """
+        kb = {
+        'facts': [
+            ["woman", "nour"],
+            ["woman", "katia"],
+            ["man", "jo"],
+            ["man", "ahmed"],
+            ["cute", "ahmed"],
+            ["loves", "nour", "python"],
+            ["loves", "ahmed", "python"],
+            ["loves", "jo", "gevent"],
+            ["loves", "katia", "gevent"],
+            ["loves", "andrew", "rust"],
+            ["man", "andrew"],
+            ["man", "khaled"],
+            ["loves", "khaled", "rust"],
+            ["loves", "ahmed", "haskell"],
+            ["man", "azmy"],
+            ["loves", "azmy", "go"],
+        ],
+        'rules': [
+            ['alien', '?x',  ['man' '?x']]
+        ]
+
+    }
+
+    qs: man jo
+
+        search results = []
+        for f in facts:
+            if f[0] == q[0]:
+                res = unify(f, q)
+                search results add res
+                # should we early quit if no variables at all?
+
+    qs: man ?x
+        search results = []
+        for f in facts:
+            if f[0] == q[0]:
+                res = unify(f, q)
+                search results add res
+    
+    qs: man ?x, loves python
+
+        for q in qs:
+            qenvchoices = {}   => {['man', ?x'] : (x? jo or ?x ahmed) }
             for f in facts:
-                if f[0] != clause[0]:
-                    continue
-                newenv = copy.deepcopy(env)
-                res = unify(f, clause, newenv)
-                if res:
-                    choices.append(res)
-                    # print("Clause {} can be unified with {} in ways {}".format(clause, f, choices))
-            clausesinfo[cid] = {'choices': choices, 'clause':clause}
-        # print(clausesinfo)
-        for fid, fact in enumerate(facts):
-            for clauseid, clauseinfo in clausesinfo.items():
-                choices = clauseinfo['choices']
-                clause = clauseinfo['clause']
-                for e in choices:
-                    rewritten_clause = rename_vars(clause, e)
-                    res = unify(fact, rewritten_clause, e)
-                    if not res:
-                        continue
-                        # print("[-] couldn't unify {} with {} in env {}".format(fact, rewritten_clause, e))
-                    else:
-                        # print("     "*depth, "[+] unified {} with {} in env {}".format(fact, rewritten_clause, res))
-                        res = ask(facts[fid+1:], clauses[clauseid+1:], res, depth+1, originalclauseslen)
-                        if depth + 1 == originalclauseslen:
-                            # print("SUCCESS!!!")
-                            # print(res)
-                            results.append(res)
-                            # return res
-        return env
-    ask(facts, clauses, env, 0, -1)
-    return results
+                if f[0] == q[0]:
+                    res = unify(f, q)
+                    qenvchoices.append(res)
+            
+            for choice in qenvchoicess:
+                solve the rest of qs with X is Jo, ahmed
+    """
+    def satisfy(kb, resolved):
+        facts = kb.get('facts', [])
+        rules = kb.get('rules', [])
+        return all(el in facts for el in resolved)
+
+
+    def ask(kb, queries, env=None, depth=0, originalqueries_len=0, unified=0):
+        env = env or {}
+        # print(depth*"\t\t", "  in ask => env: {} depth {} queries_len {}".format(env, depth, originalqueries_len))
+        # if depth == DEPTH_LIMIT or depth + 1 == originalqueries_len or not queries:
+        if not queries:
+            # print("\t\t"*depth, " returning now ", env, depth, originalqueries_len)
+            yield env
+    
+        facts = kb.get('facts', [])
+        rules = kb.get('rules', [])
+        # query -> choices { ['man', '?x'] : [{'?x':'ahmed'}, {'?x':'jo'} }
+        for fact in facts:
+            for cidx, clause in enumerate(queries):
+                e = unify(fact, clause, env)
+                if e:
+                    renamed_clauses = [rename_vars(q, e) for q in queries]
+                    for potential_solution in ask(kb, renamed_clauses[cidx+1:], e):
+                        # print(" potentil solution: ", potential_solution)
+                        if satisfy(kb, renamed_clauses):
+                            yield potential_solution             
+
+    print("MAIN", " queries: {} env: {} ".format(queries, mainenv))
+
+    results = list(ask(kb, queries, mainenv, 0, len(queries)))
+    uniq_results = []
+    for r in results:
+        if r not in uniq_results:
+            uniq_results.append(r)
+    return uniq_results
 
 def test_unify_simple():
     l1 = [3, '?a', 5]
@@ -111,83 +162,171 @@ def test_dontunify_complex():
     l2 = [ '?j', 11]
     print(unify(l1, l2))
 
+def test_dontunify_simple():
+    l1 = [ 4, '?j']
+    l2 = [ '?j', 7]
+    print(unify(l1, l2))
 
 def test_query_simple():
-    facts = [ 
-        ["man", "ahmed"],
-        ["man", "jo"],
-        ["man", "prince"],
-    ]
+    kb = {
+        'facts': [ 
+            ["man", "ahmed"],
+            ["man", "jo"],
+            ["man", "prince"],
+        ]
+    }
 
-    clauses = [["man", "?name"],]
-    print(query(facts, clauses))
+    queries = [["man", "?name"],]
+    print(query(kb, queries))
+
+def test_query_simple2():
+    kb = {
+        'facts': [ 
+            ["man", "ahmed"],
+            ["man", "jo"],
+            ["man", "prince"],
+            ["loves", "ahmed", "python"],
+        ]
+    }
+    queries = [["man", "?name"], ["loves", "?name", "python"]]
+    print(query(kb, queries))
+
+
+def test_query_simple3():
+    kb = {
+        'facts': [ 
+            ["man", "ahmed"],
+            ["man", "jo"],
+            ["man", "prince"],
+            ["loves", "ahmed", "python"],
+            ["loves", "jo", "gevent"]
+        ]
+    }
+    queries = [["man", "?name"], ["loves", "?name", "python"]]
+    print(query(kb, queries))
+    queries = [["man", "?name"], ["loves", "?name", "gevent"]]
+    print(query(kb, queries))
+
+
+def test_query_simple4():
+    kb = {
+        'facts': [ 
+            ["woman", "nour"],
+            ["man", "ahmed"],
+            ["man", "jo"],
+            ["man", "prince"],
+            ["loves", "ahmed", "python"],
+            ["loves", "ahmed", "nour" ],
+            ["loves", "jo", "gevent"],
+            ["loves", "jo", "python"],
+        ]
+    }
+    queries = [["man", "?name"], ["loves", "?name", "python"], ["loves", "?name", "nour"]]
+    print(query(kb, queries))
+
+
+
+def test_query_simple5():
+    kb = {
+        'facts': [ 
+            ["woman", "nour"],
+            ["man", "ahmed"],
+            ["man", "jo"],
+            ["man", "prince"],
+            ["loves", "ahmed", "python"],
+            ["loves", "ahmed", "nour" ],
+            ["loves", "jo", "gevent"],
+            ["loves", "jo", "python"],
+        ]
+    }
+    # queries = [["man", "?name"], ["loves", "?name", "python"], ["loves", "?name", "?girl"], ["woman", "?girl"]]
+    # print(query(kb, queries))
+    queries = [["man", "?name"], ["loves", "?name", "?girl"], ["woman", "?girl"]]
+    print(query(kb, queries))
 
 
 def test_query_complex():
-    facts = [ 
-        ["woman", "nour"],
-        ["woman", "katia"],
-        ["man", "jo"],
-        ["man", "ahmed"],
-        ["cute", "ahmed"],
-        ["loves", "nour", "python"],
-        ["loves", "ahmed", "python"],
-        ["loves", "jo", "gevent"],
-        ["loves", "katia", "gevent"],
-        ["loves", "andrew", "rust"],
-        ["man", "andrew"],
-        ["man", "khaled"],
-        ["loves", "khaled", "rust"],
-        ["loves", "ahmed", "haskell"],
-        ["man", "azmy"],
-        ["loves", "azmy", "go"],
-    ]
+    kb = {
+        'facts': [
+            ["woman", "nour"],
+            ["woman", "katia"],
+            ["man", "jo"],
+            ["man", "ahmed"],
+            ["cute", "ahmed"],
+            ["loves", "nour", "python"],
+            ["loves", "ahmed", "python"],
+            ["loves", "jo", "gevent"],
+            ["loves", "katia", "gevent"],
+            ["loves", "andrew", "rust"],
+            ["man", "andrew"],
+            ["man", "khaled"],
+            ["loves", "khaled", "rust"],
+            ["loves", "ahmed", "haskell"],
+            ["man", "azmy"],
+            ["loves", "azmy", "go"],
+        ],
+        'rules': [
+            ['alien', '?x',  ['man' '?x']]
+        ]
 
-    clauses1 = [
+    } 
+
+
+    query1 = [
         ["man", "?name"],
         ["loves", "?name", "python"],
     ]
-    clauses2 = [
+    query2 = [
         ["man", "?name"],
         ["loves", "?name", "gevent"],
     ]
-    clauses3 = [
+    query3 = [
         ["woman", "?name"],
     ]
-    clauses4 = [
+    query4 = [
         ["bird", "?name"],
     ]
-    clauses5 = [
+    query5 = [
         ["man", "?name"],
     ]
-    clauses6 = [
+    query6 = [
         ["loves", "?name", "python"]
     ]
-    clauses7 = [
+    query7 = [
         ["loves", "?name", "gevent"]
     ]
-    clauses8 = [
+    query8 = [
         ["loves", "?name", "rust"]
     ]
-    clauses9 = [
+    query9 = [
         ["loves", "?name", "go"]
     ]
-    clauses10 = [
+    query10 = [
         ["man", "?name"],
         ["cute", "?name"],
         ["loves", "?name", "?lang"],
     ]
-    for c in [clauses1, clauses2, clauses3, clauses4, clauses5, clauses6, clauses7, clauses8, clauses9, clauses10]:
-        print("Query: ", c)
-        print(query(facts, c))
+
+    query11 = [
+        ["alien", "?name"]
+    ]
+    for q in [query1, query2, query3, query4, query5, query6, query7, query8, query9, query10]:
+        print("Query: ", q)
+        print(query(kb, q))
 
 def main():
     test_unify_simple()
     test_unify_simple_with_env()
     test_unify_complex()
     test_unify_very_complex()
+    test_dontunify_simple()
     test_dontunify_complex()
     test_query_simple()
+    test_query_simple2()
+    test_query_simple3()
+    test_query_simple4()
+    test_query_simple5()
+
     test_query_complex()
 
 if __name__ == '__main__':
