@@ -192,15 +192,17 @@ def query(kb, q, mainenv=None):
                             # dprint("Suery : {}".format(rewritten_query))
 
                             nextgoal = AndQ(*rewritten_query.qs[qidx+1:])
-                            if nextgoal.consumed():
+                            if AndQ.satisfy(kb, rewritten_query):
                                 yield extended
+                            
                             # dprint("extended: {}, nextgoal {} ".format(extended, nextgoal))
                             # import ipdb; ipdb.set_trace()
+                            
                             for potential_sol in ask(kb, nextgoal, extended, depth+1):
                                 # dprint("potential: ", potential_sol)
-                                if AndQ.satisfy(kb, rewritten_query):
+                                # if AndQ.satisfy(kb, rewritten_query):
                                     # print("satisfied..")
-                                    yield potential_sol
+                                yield potential_sol
 
 
 
