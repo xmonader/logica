@@ -356,6 +356,18 @@ def test_query_simple6():
     q = AndQ(["father", "?x", "?y"], ["father", "?y", "?z"])
     print(query(kb, q))
 
+@funinfo
+def test_query_simple7():
+    ## HIDDEN VARIABLES..
+    kb = {
+        'facts': [ 
+            ["father", "functor", "notmonad"],
+            ["father", "functor", "monad"],
+            ["father", "monoid", "functor"],
+        ]
+    }
+    q = AndQ(["father", "?x", "?y"], ["father", "?y", "?z"])
+    print(query(kb, q))
 
 @funinfo
 def test_simple_rule():
@@ -482,6 +494,8 @@ def main():
     test_query_simple4()
     test_query_simple5()
     test_query_simple6()
+    test_query_simple7()
+
     # test_query_complex()
     # test_simple_rule()
     # test_simple_rule2()
