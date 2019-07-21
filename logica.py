@@ -27,7 +27,7 @@ class Q:
             if isinstance(q, list):
                 res.qs[qidx] = rename_vars(q, env)
             else:
-                res.qs[qdix] = q.rewrite_vars(env)
+                res.qs[qidx] = q.rewrite_vars(env)
         return res
 
 class AndQ(Q):
@@ -53,6 +53,9 @@ class OrQ(Q):
 class NotQ(Q):
     __str__ = lambda self: "NotQ({})".format(self.qs)
 
+    @staticmethod
+    def satisfy(kb, q):
+        return not AndQ.satisfy(kb, q)
 
 def unify(xs, ys, env=None):
     # [3 a 5] [y 7 z]  => {y:3 a:7 z:5}
@@ -235,23 +238,20 @@ def runquery(kb, q, mainenv=None):
                         if extended:
                             yield extended, True
 
-            # if isinstance(query, NotQ):
-            #     subqueries = query.qs
-            #     resQ = OrQ()
-            #     for qidx, q in enumerate(subqueries):
-            #         if isinstance(q, list):
-            #             # import ipdb; ipdb.set_trace()
-            #             res = runquery(kb, AndQ(q))
-            #             for e,m in res:
-            #                 print("e, m : ", e, m)
-            #                 if m:
-            #                     break
-            #             else:
-            #                 print(resQ)
-            #                 resQ.qs.append(q)
-            #     print(resQ)
-            #     for e, m in runquery(kb, resQ, env):
-            #         yield e, m
+            if isinstance(query, NotQ):
+                resQ = AndQ(*query.qs)
+                subqueries = resQ.qs
+                for qidx, q in enumerate(subqueries):
+                    if isinstance(q, list):
+                        res = runquery(kb, AndQ(q))
+                        for e,m in res:
+                            print("e, m : ", e, m)
+                            if m:
+                                print("bad env: ", e)
+                            else:
+                                print(resQ)
+                                yield e, True
+
             
     print("MAIN", " query: {} env: {} ".format(q, mainenv))
 
@@ -462,17 +462,18 @@ def test_query_simple_or2():
     q = OrQ(["loves", "?name", "python"], ["eats", "?name", "chocolate"])
     print(runquery(kb, q))
 
-# @funinfo
-# def test_query_simple_not1():
-#     kb = {
-#         'facts': [ 
-#             ["father", "emam", "thabet"],
-#             ["father", "emam", "tharwat"],
-#             ["mother", "thabet", "zainab"],
-#         ]
-#     }
-#     q = NotQ(["father", "emam", "thabet"])
-#     print(runquery(kb, q))
+@funinfo
+def test_query_simple_not1():
+    kb = {
+        'facts': [ 
+            ["father", "a", "b"],
+            ["father", "a", "c"],
+            ["father", "z", "b"],
+            ["father", "z", "y"],
+        ]
+    }
+    q = AndQ(NotQ(["father", "a", "?x"]), ["father", "z", "?x"])
+    print(runquery(kb, q))
 
 @funinfo
 def test_simple_rule():
@@ -606,8 +607,10 @@ def main():
     test_query_simple_or1()
     test_query_simple_or2()
 
-    # test_query_simple_not1()
+    test_query_simple_not1()
+
     test_query_complex()
+
     # test_simple_rule()
     # test_simple_rule2()
 
