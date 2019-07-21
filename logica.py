@@ -89,9 +89,32 @@ def rename_vars(clause, env):
     newclause = clause[:]
     for i,el in enumerate(clause):
         if el in env:
-            newclause[i] = env[el]
+            newclause[i] = env.get(el, el)
     return newclause
 
+class Frame:
+    def __init__(self, env, parent=None):
+        self.env = env
+        self.parent = parent or {}
+        self.parent = parent
+    
+    def get(self, k, default):
+        if k in self.env:
+            return self.env[k]
+        else:
+            if self.parent:
+                return self.parent.get(k, default)
+
+    def __setitem__(self, i, v):
+        self.env[i] = v
+    def __getitem__(self, i):
+        return self.get(i, None)
+    
+    def __contains__(self, v):
+        return self.get(v, None) is not None
+
+    def __str__(self):
+        return "<{} and parent: {}>".format(self.env, self.parent)
 def runquery(kb, q, mainenv=None):
     main = mainenv or {}
     originalfacts = kb.get('facts', [])
@@ -160,9 +183,14 @@ def runquery(kb, q, mainenv=None):
 
     def ask(kb, query, env=None, depth=0):
         def dprint(*m):
-            print("\t\t\t\t"*depth, m)
+            print("\t"*depth, *m)
 
         env = env or {}
+        # dprint("===ask===")
+        # dprint("query: {}".format(query))
+        # dprint("env  : {}".format(env))
+        # dprint("kb   : {}".format(kb))
+
         # if query.consumed():
         #     yield env
         # if not len(query.qs):
@@ -171,38 +199,55 @@ def runquery(kb, q, mainenv=None):
         facts = kb.get('facts', [])
         rules = kb.get('rules', [])
         # query -> choices { ['man', '?x'] : [{'?x':'ahmed'}, {'?x':'jo'} }
+        # if env.get('?y', "") == 'thabet':
+        #     print(query, facts, env)
+        #     import ipdb; ipdb.set_trace()
         for fact in facts:
             # print("fact :" , fact)
             # print("Query: ", query)
+            
             if isinstance(query, AndQ):
                 subqueries = query.qs
                 # dprint("subqueries: ", subqueries)
-                if subqueries == [[]]:
-                    yield env
+
                 # need to be anded together.
                 for qidx, q in enumerate(subqueries):
+                    # if env.get('?x',"") == 'monoid':
+                        
+                    # dprint("+will check {} and {} in env {}".format(fact, q, env))
                     # if isinstance(q, Q):
                     #     q = Q
-                    if isinstance(q, list):
-                        extended = unify(fact, q, env)
-                        if extended:
-                            # dprint("Q {} F {}".format(q, fact))
-                            rewritten_query = query.rewrite_vars(extended)
-                            # dprint("Query : {}".format(query))
-                            # dprint("Suery : {}".format(rewritten_query))
+                    for f2 in facts:
+                        if isinstance(q, list):
+                            extended = unify(f2, q, env)
+                            # if not extended:
+                                # dprint("-failed to unify f {} and q {} in env {}".format(fact, q, env))
+                            if not extended:
+                                yield {}
+                            if extended:
+                                extended = {**env, **extended}
+                                if extended == {'?x': 'emam', '?y': 'thabet'}:
+                                    import ipdb; ipdb.set_trace()
+                                # extended = Frame(extended, env)
+                                dprint("+unified f {} q {} and env now {}".format(f2, q, extended))
 
-                            nextgoal = AndQ(*rewritten_query.qs[qidx+1:])
-                            if AndQ.satisfy(kb, rewritten_query):
-                                yield extended
-                            
-                            # dprint("extended: {}, nextgoal {} ".format(extended, nextgoal))
-                            # import ipdb; ipdb.set_trace()
-                            
-                            for potential_sol in ask(kb, nextgoal, extended, depth+1):
-                                # dprint("potential: ", potential_sol)
-                                # if AndQ.satisfy(kb, rewritten_query):
-                                    # print("satisfied..")
-                                yield potential_sol
+                                rewritten_query = query.rewrite_vars(extended)
+                                # dprint("Query : {}".format(query))
+                                # dprint("Suery : {}".format(rewritten_query))
+                                nextgoal = AndQ(*rewritten_query.qs[qidx+1:])
+                                if AndQ.satisfy(kb, rewritten_query):
+                                    yield extended
+                                # print("starting nested runquery..")
+                                # options = runquery(kb, nextgoal, extended)
+                                # dprint("options for nextgoal: {}".format(options))
+                                # dprint("extended: {}, nextgoal {} ".format(extended, nextgoal))
+                                # import ipdb; ipdb.set_trace()
+                                # for optenv in options:
+                                for potential_sol in ask(kb, nextgoal, extended, depth+1):
+                                    # dprint("potential: ", potential_sol)
+                                    # if AndQ.satisfy(kb, rewritten_query):
+                                        # print("satisfied..")
+                                    yield potential_sol
 
 
 
@@ -211,7 +256,7 @@ def runquery(kb, q, mainenv=None):
     results = list(ask(kb, q, mainenv))
     uniq_results = []
     for r in results:
-        if r not in uniq_results:
+        if r and r not in uniq_results:
             uniq_results.append(r)
     return uniq_results
 
@@ -361,9 +406,9 @@ def test_query_simple7():
     ## HIDDEN VARIABLES..
     kb = {
         'facts': [ 
-            ["father", "functor", "notmonad"],
-            ["father", "functor", "monad"],
-            ["father", "monoid", "functor"],
+            ["father", "emam", "thabet"],
+            ["father", "thabet", "ahmed"],
+            ["father", "thabet", "omnia"],
         ]
     }
     q = AndQ(["father", "?x", "?y"], ["father", "?y", "?z"])
@@ -493,7 +538,7 @@ def main():
     # test_query_simple3()
     # test_query_simple4()
     # test_query_simple5()
-    # test_query_simple6()
+    test_query_simple6()
     test_query_simple7()
 
     # test_query_complex()
