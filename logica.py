@@ -544,44 +544,45 @@ def test_query_complex():
     } 
 
 
-    query1 = [
+    query1 = AndQ(
         ["man", "?name"],
-        ["loves", "?name", "python"],
-    ]
-    query2 = [
-        ["man", "?name"],
-        ["loves", "?name", "gevent"],
-    ]
-    query3 = [
-        ["woman", "?name"],
-    ]
-    query4 = [
-        ["bird", "?name"],
-    ]
-    query5 = [
-        ["man", "?name"],
-    ]
-    query6 = [
         ["loves", "?name", "python"]
-    ]
-    query7 = [
+    )
+    query2 = AndQ(
+        ["man", "?name"],
         ["loves", "?name", "gevent"]
-    ]
-    query8 = [
+    )
+
+    query3 = AndQ(
+        ["woman", "?name"],
+    )
+    query4 = AndQ(
+        ["bird", "?name"],
+    )
+    query5 = AndQ(
+        ["man", "?name"],
+    )
+    query6 = AndQ(
+        ["loves", "?name", "python"]
+    )
+    query7 = AndQ(
+        ["loves", "?name", "gevent"]
+    )
+    query8 = AndQ(
         ["loves", "?name", "rust"]
-    ]
-    query9 = [
+    )
+    query9 = AndQ(
         ["loves", "?name", "go"]
-    ]
-    query10 = [
+    )
+    query10 = AndQ(
         ["man", "?name"],
         ["cute", "?name"],
         ["loves", "?name", "?lang"],
-    ]
+    )
 
-    query11 = [
+    query11 = AndQ(
         ["alien", "?name"]
-    ]
+    )
     for q in [query1, query2, query3, query4, query5, query6, query7, query8, query9, query10]:
         print("Query: ", q)
         print(runquery(kb, q))
@@ -606,7 +607,7 @@ def main():
     test_query_simple_or2()
 
     # test_query_simple_not1()
-    # test_query_complex()
+    test_query_complex()
     # test_simple_rule()
     # test_simple_rule2()
 
