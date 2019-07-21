@@ -186,94 +186,44 @@ def runquery(kb, q, mainenv=None):
         env = env or {}
         facts = kb.get('facts', [])
         rules = kb.get('rules', [])
-        # query -> choices { ['man', '?x'] : [{'?x':'ahmed'}, {'?x':'jo'} }
-        # if env.get('?y', "") == 'thabet':
-        #     print(query, facts, env)
-        #     import ipdb; ipdb.set_trace()
+
         for fact in facts:
-            # print("fact :" , fact)
-            # print("Query: ", query)
-            
             if isinstance(query, AndQ):
                 subqueries = query.qs
-                # dprint("subqueries: ", subqueries)
-
-                # need to be anded together.
                 for qidx, q in enumerate(subqueries):
-                    # if env.get('?x',"") == 'monoid':
                     e = unify(fact, q)
                     if e:
                         yield e
         
-
     def ask(kb, query, env=None, depth=0):
         def dprint(*m):
             print("\t"*depth, *m)
 
         env = env or {}
-        # dprint("===ask===")
-        # dprint("query: {}".format(query))
-        # dprint("env  : {}".format(env))
-        # dprint("kb   : {}".format(kb))
-
-        # if query.consumed():
-        #     yield env
-        # if not len(query.qs):
-        #     yield env
-    
         facts = kb.get('facts', [])
         rules = kb.get('rules', [])
-        # query -> choices { ['man', '?x'] : [{'?x':'ahmed'}, {'?x':'jo'} }
-        # if env.get('?y', "") == 'thabet':
-        #     print(query, facts, env)
-        #     import ipdb; ipdb.set_trace()
         for fact in facts:
             # print("fact :" , fact)
             # print("Query: ", query)
             
             if isinstance(query, AndQ):
                 subqueries = query.qs
-                # dprint("subqueries: ", subqueries)
-
-                # need to be anded together.
                 for qidx, q in enumerate(subqueries):
-                    # if env.get('?x',"") == 'monoid':
-                        
-                    # dprint("+will check {} and {} in env {}".format(fact, q, env))
-                    # if isinstance(q, Q):
-                    #     q = Q
-                    for f2 in facts:
-                        if isinstance(q, list):
-                            extended = unify(f2, q, env)
-                            # if not extended:
-                                # dprint("-failed to unify f {} and q {} in env {}".format(fact, q, env))
-                            if not extended:
-                                yield {}
-                            if extended:
-                                extended = {**env, **extended}
-                                # if extended == {'?x': 'emam', '?y': 'thabet'}:
-                                #     import ipdb; ipdb.set_trace()
-                                # extended = Frame(extended, env)
-                                dprint("+unified f {} q {} and env now {}".format(f2, q, extended))
+                    if isinstance(q, list):
+                        extended = unify(fact, q, env)
+                        if not extended:
+                            yield {}
+                        if extended:
+                            extended = {**env, **extended}
+                            rewritten_query = query.rewrite_vars(extended)
 
-                                rewritten_query = query.rewrite_vars(extended)
-                                # dprint("Query : {}".format(query))
-                                # dprint("Suery : {}".format(rewritten_query))
-                                nextgoal = AndQ(*rewritten_query.qs[qidx+1:])
-                                if AndQ.satisfy(kb, rewritten_query):
-                                    yield extended
-                                # print("starting nested runquery..")
-                                # options = runquery(kb, nextgoal, extended)
-                                # dprint("options for nextgoal: {}".format(options))
-                                # dprint("extended: {}, nextgoal {} ".format(extended, nextgoal))
-                                # import ipdb; ipdb.set_trace()
-                                optenvs = list(ask_simple(kb, nextgoal))
-                                for optenv in optenvs:
-                                    for potential_sol in ask(kb, nextgoal, {**optenv, **extended}, depth+1):
-                                        # dprint("potential: ", potential_sol)
-                                        # if AndQ.satisfy(kb, rewritten_query):
-                                            # print("satisfied..")
-                                        yield potential_sol
+                            nextgoal = AndQ(*rewritten_query.qs[qidx+1:])
+                            if AndQ.satisfy(kb, rewritten_query):
+                                yield extended
+                            optenvs = list(ask_simple(kb, nextgoal))
+                            for optenv in optenvs:
+                                for potential_sol in ask(kb, nextgoal, {**optenv, **extended}, depth+1):
+                                    yield potential_sol
 
 
 
@@ -553,17 +503,17 @@ def test_query_complex():
         print(runquery(kb, q))
 
 def main():
-    # test_unify_simple()
-    # test_unify_simple_with_env()
-    # test_unify_complex()
-    # test_unify_very_complex()
-    # test_dontunify_simple()
-    # test_dontunify_complex()
-    # test_query_simple()
-    # test_query_simple2()
-    # test_query_simple3()
-    # test_query_simple4()
-    # test_query_simple5()
+    test_unify_simple()
+    test_unify_simple_with_env()
+    test_unify_complex()
+    test_unify_very_complex()
+    test_dontunify_simple()
+    test_dontunify_complex()
+    test_query_simple()
+    test_query_simple2()
+    test_query_simple3()
+    test_query_simple4()
+    test_query_simple5()
     test_query_simple6()
     test_query_simple7()
 
