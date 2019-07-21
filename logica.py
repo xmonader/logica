@@ -92,7 +92,7 @@ def rename_vars(clause, env):
             newclause[i] = env[el]
     return newclause
 
-def query(kb, q, mainenv=None):
+def runquery(kb, q, mainenv=None):
     main = mainenv or {}
     originalfacts = kb.get('facts', [])
     originalrules = kb.get('rules', [])
@@ -269,7 +269,7 @@ def test_query_simple():
     }
 
     q = AndQ( ["man", "?x"] )
-    print(query(kb, q))
+    print(runquery(kb, q))
 
 @funinfo
 def test_query_simple2():
@@ -282,7 +282,7 @@ def test_query_simple2():
         ]
     }
     q = AndQ(["man", "?name"], ["loves", "?name", "python"])
-    print(query(kb, q))
+    print(runquery(kb, q))
 
 
 @funinfo
@@ -297,9 +297,9 @@ def test_query_simple3():
         ]
     }
     q = AndQ(["man", "?name"], ["loves", "?name", "python"])
-    print(query(kb, q))
+    print(runquery(kb, q))
     q = AndQ(["man", "?name"], ["loves", "?name", "gevent"])
-    print(query(kb, q))
+    print(runquery(kb, q))
 
 
 @funinfo
@@ -317,7 +317,7 @@ def test_query_simple4():
         ]
     }
     q = AndQ( ["man", "?name"], ["loves", "?name", "python"], ["loves", "?name", "nour"])
-    print(query(kb, q))
+    print(runquery(kb, q))
 
 
 
@@ -337,11 +337,11 @@ def test_query_simple5():
     }
 
     q = AndQ(["man", "?name"], ["woman", "?girl"], ["loves", "?name", "?girl"])
-    print(query(kb, q))
+    print(runquery(kb, q))
 
     # BROKEN AGAIN..
     q = AndQ(["man", "?name"], ["loves", "?name", "?girl"], ["woman", "?girl"]) 
-    print(query(kb, q))
+    print(runquery(kb, q))
 
 
 @funinfo
@@ -354,7 +354,7 @@ def test_query_simple6():
         ]
     }
     q = AndQ(["father", "?x", "?y"], ["father", "?y", "?z"])
-    print(query(kb, q))
+    print(runquery(kb, q))
 
 @funinfo
 def test_query_simple7():
@@ -367,7 +367,7 @@ def test_query_simple7():
         ]
     }
     q = AndQ(["father", "?x", "?y"], ["father", "?y", "?z"])
-    print(query(kb, q))
+    print(runquery(kb, q))
 
 @funinfo
 def test_simple_rule():
@@ -389,7 +389,7 @@ def test_simple_rule():
             ]
     }
     queries = [ ["mortal", "ahmed"] ]
-    print(query(kb, queries))
+    print(runquery(kb, queries))
 
 
 @funinfo
@@ -412,7 +412,7 @@ def test_simple_rule2():
             ]
     }
     queries = [ ["mortal", "?x"], ["loves", "?x", "gevent"] ]
-    print(query(kb, queries))
+    print(runquery(kb, queries))
 
 
 @funinfo
@@ -479,21 +479,21 @@ def test_query_complex():
     ]
     for q in [query1, query2, query3, query4, query5, query6, query7, query8, query9, query10]:
         print("Query: ", q)
-        print(query(kb, q))
+        print(runquery(kb, q))
 
 def main():
-    test_unify_simple()
-    test_unify_simple_with_env()
-    test_unify_complex()
-    test_unify_very_complex()
-    test_dontunify_simple()
-    test_dontunify_complex()
-    test_query_simple()
-    test_query_simple2()
-    test_query_simple3()
-    test_query_simple4()
-    test_query_simple5()
-    test_query_simple6()
+    # test_unify_simple()
+    # test_unify_simple_with_env()
+    # test_unify_complex()
+    # test_unify_very_complex()
+    # test_dontunify_simple()
+    # test_dontunify_complex()
+    # test_query_simple()
+    # test_query_simple2()
+    # test_query_simple3()
+    # test_query_simple4()
+    # test_query_simple5()
+    # test_query_simple6()
     test_query_simple7()
 
     # test_query_complex()
