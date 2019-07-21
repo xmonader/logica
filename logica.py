@@ -210,29 +210,56 @@ def runquery(kb, q, mainenv=None):
                 subqueries = query.qs
                 for qidx, q in enumerate(subqueries):
                     if isinstance(q, list):
+                        if fact == q:
+                            yield {}, True
                         extended = unify(fact, q, env)
                         if not extended:
-                            yield {}
+                            yield {}, False
                         if extended:
                             extended = {**env, **extended}
                             rewritten_query = query.rewrite_vars(extended)
 
                             nextgoal = AndQ(*rewritten_query.qs[qidx+1:])
                             if AndQ.satisfy(kb, rewritten_query):
-                                yield extended
+                                yield extended, True
                             optenvs = list(ask_simple(kb, nextgoal))
                             for optenv in optenvs:
-                                for potential_sol in ask(kb, nextgoal, {**optenv, **extended}, depth+1):
-                                    yield potential_sol
+                                for potential_sol, matches in ask(kb, nextgoal, {**optenv, **extended}, depth+1):
+                                    yield potential_sol, matches
 
+            if isinstance(query, OrQ):
+                subqueries = query.qs
+                for qidx, q in enumerate(subqueries):
+                    if isinstance(q, list):
+                        extended = unify(fact, q, env)
+                        if extended:
+                            yield extended, True
 
-
+            # if isinstance(query, NotQ):
+            #     subqueries = query.qs
+            #     resQ = OrQ()
+            #     for qidx, q in enumerate(subqueries):
+            #         if isinstance(q, list):
+            #             # import ipdb; ipdb.set_trace()
+            #             res = runquery(kb, AndQ(q))
+            #             for e,m in res:
+            #                 print("e, m : ", e, m)
+            #                 if m:
+            #                     break
+            #             else:
+            #                 print(resQ)
+            #                 resQ.qs.append(q)
+            #     print(resQ)
+            #     for e, m in runquery(kb, resQ, env):
+            #         yield e, m
+            
     print("MAIN", " query: {} env: {} ".format(q, mainenv))
 
     results = list(ask(kb, q, mainenv))
     uniq_results = []
     for r in results:
-        if r and r not in uniq_results:
+        if r[1] and r not in uniq_results:
+            # env, matches or not.
             uniq_results.append(r)
     return uniq_results
 
@@ -278,6 +305,19 @@ def test_dontunify_simple():
     l1 = [ 4, '?j']
     l2 = [ '?j', 7]
     print(unify(l1, l2))
+
+@funinfo
+def test_query_simple0():
+    kb = {
+        'facts': [ 
+            ["man", "ahmed"],
+            ["man", "jo"],
+            ["man", "prince"],
+        ]
+    }
+
+    q = AndQ( ["man", "ahmed"] )
+    print(runquery(kb, q))
 
 @funinfo
 def test_query_simple():
@@ -389,6 +429,50 @@ def test_query_simple7():
     }
     q = AndQ(["father", "?x", "?y"], ["father", "?y", "?z"])
     print(runquery(kb, q))
+
+@funinfo
+def test_query_simple_or1():
+    ## HIDDEN VARIABLES..
+    kb = {
+        'facts': [ 
+            ["father", "emam", "thabet"],
+            ["mother", "thabet", "zainab"],
+        ]
+    }
+    q = OrQ(["father", "?a", "?b"], ["mother", "?c", "?d"])
+    print(runquery(kb, q))
+
+@funinfo
+def test_query_simple_or2():
+
+    kb = {
+        'facts': [ 
+            ["woman", "nour"],
+            ["man", "ahmed"],
+            ["man", "jo"],
+            ["man", "prince"],
+            ["loves", "ahmed", "python"],
+            ["loves", "ahmed", "nour" ],
+            ["loves", "jo", "gevent"],
+            ["loves", "jo", "python"],
+            ["eats", "jo", "chocolate"]
+        ]
+    }
+
+    q = OrQ(["loves", "?name", "python"], ["eats", "?name", "chocolate"])
+    print(runquery(kb, q))
+
+# @funinfo
+# def test_query_simple_not1():
+#     kb = {
+#         'facts': [ 
+#             ["father", "emam", "thabet"],
+#             ["father", "emam", "tharwat"],
+#             ["mother", "thabet", "zainab"],
+#         ]
+#     }
+#     q = NotQ(["father", "emam", "thabet"])
+#     print(runquery(kb, q))
 
 @funinfo
 def test_simple_rule():
@@ -509,6 +593,7 @@ def main():
     test_unify_very_complex()
     test_dontunify_simple()
     test_dontunify_complex()
+    test_query_simple0()
     test_query_simple()
     test_query_simple2()
     test_query_simple3()
@@ -517,6 +602,10 @@ def main():
     test_query_simple6()
     test_query_simple7()
 
+    test_query_simple_or1()
+    test_query_simple_or2()
+
+    # test_query_simple_not1()
     # test_query_complex()
     # test_simple_rule()
     # test_simple_rule2()
