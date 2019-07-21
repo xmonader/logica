@@ -95,94 +95,10 @@ def rename_vars(clause, env):
             newclause[i] = env.get(el, el)
     return newclause
 
-class Frame:
-    def __init__(self, env, parent=None):
-        self.env = env
-        self.parent = parent or {}
-        self.parent = parent
-    
-    def get(self, k, default):
-        if k in self.env:
-            return self.env[k]
-        else:
-            if self.parent:
-                return self.parent.get(k, default)
-
-    def __setitem__(self, i, v):
-        self.env[i] = v
-    def __getitem__(self, i):
-        return self.get(i, None)
-    
-    def __contains__(self, v):
-        return self.get(v, None) is not None
-
-    def __str__(self):
-        return "<{} and parent: {}>".format(self.env, self.parent)
 def runquery(kb, q, mainenv=None):
     main = mainenv or {}
     originalfacts = kb.get('facts', [])
     originalrules = kb.get('rules', [])
-
-    """
-        kb = {
-        'facts': [
-            ["woman", "nour"],
-            ["woman", "katia"],
-            ["man", "jo"],
-            ["man", "ahmed"],
-            ["cute", "ahmed"],
-            ["loves", "nour", "python"],
-            ["loves", "ahmed", "python"],
-            ["loves", "jo", "gevent"],
-            ["loves", "katia", "gevent"],
-            ["loves", "andrew", "rust"],
-            ["man", "andrew"],
-            ["man", "khaled"],
-            ["loves", "khaled", "rust"],
-            ["loves", "ahmed", "haskell"],
-            ["man", "azmy"],
-            ["loves", "azmy", "go"],
-        ],
-        'rules': [
-            
-            [ ['mortal', '?x'], ['man', '?x'] ],
-            [ ['mortal, '?x'],  ['woman', '?x']]
-        ]
-
-    }
-
-    qs: man jo
-
-        search results = []
-        for f in facts:
-            if f[0] == q[0]:
-                res = unify(f, q)
-                search results add res
-                # should we early quit if no variables at all?
-
-    qs: man ?x
-        search results = []
-        for f in facts:
-            if f[0] == q[0]:
-                res = unify(f, q)
-                search results add res
-    
-    qs: man ?x, loves python
-
-        for q in qs:
-            qenvchoices = {}   => {['man', ?x'] : (x? jo or ?x ahmed) }
-            for f in facts:
-                if f[0] == q[0]:
-                    res = unify(f, q)
-                    qenvchoices.append(res)
-            
-            for choice in qenvchoicess:
-                solve the rest of qs with X is Jo, ahmed
-    """
-    def satisfy(kb, resolved):
-        facts = kb.get('facts', [])
-        rules = kb.get('rules', [])
-        return all(el in facts for el in resolved)
 
     def ask_simple(kb, query, env=None, depth=0):
         
@@ -198,6 +114,7 @@ def runquery(kb, q, mainenv=None):
                     if e:
                         yield e
         
+    
     def ask(kb, query, env=None, depth=0):
         def dprint(*m):
             print("\t"*depth, *m)
@@ -206,9 +123,6 @@ def runquery(kb, q, mainenv=None):
         facts = kb.get('facts', [])
         rules = kb.get('rules', [])
         for fact in facts:
-            # print("fact :" , fact)
-            # print("Query: ", query)
-            
             if isinstance(query, AndQ):
                 subqueries = query.qs
                 for qidx, q in enumerate(subqueries):
@@ -225,10 +139,11 @@ def runquery(kb, q, mainenv=None):
                             nextgoal = AndQ(*rewritten_query.qs[qidx+1:])
                             if AndQ.satisfy(kb, rewritten_query):
                                 yield extended, True
-                            optenvs = list(ask_simple(kb, nextgoal))
-                            for optenv in optenvs:
-                                for potential_sol, matches in ask(kb, nextgoal, {**optenv, **extended}, depth+1):
-                                    yield potential_sol, matches
+                            else:
+                                optenvs = list(ask_simple(kb, nextgoal))
+                                for optenv in optenvs:
+                                    for potential_sol, matches in ask(kb, nextgoal, {**optenv, **extended}, depth+1):
+                                        yield potential_sol, matches
 
             if isinstance(query, OrQ):
                 subqueries = query.qs
