@@ -181,6 +181,31 @@ def runquery(kb, q, mainenv=None):
         rules = kb.get('rules', [])
         return all(el in facts for el in resolved)
 
+    def ask_simple(kb, query, env=None, depth=0):
+        
+        env = env or {}
+        facts = kb.get('facts', [])
+        rules = kb.get('rules', [])
+        # query -> choices { ['man', '?x'] : [{'?x':'ahmed'}, {'?x':'jo'} }
+        # if env.get('?y', "") == 'thabet':
+        #     print(query, facts, env)
+        #     import ipdb; ipdb.set_trace()
+        for fact in facts:
+            # print("fact :" , fact)
+            # print("Query: ", query)
+            
+            if isinstance(query, AndQ):
+                subqueries = query.qs
+                # dprint("subqueries: ", subqueries)
+
+                # need to be anded together.
+                for qidx, q in enumerate(subqueries):
+                    # if env.get('?x',"") == 'monoid':
+                    e = unify(fact, q)
+                    if e:
+                        yield e
+        
+
     def ask(kb, query, env=None, depth=0):
         def dprint(*m):
             print("\t"*depth, *m)
@@ -226,8 +251,8 @@ def runquery(kb, q, mainenv=None):
                                 yield {}
                             if extended:
                                 extended = {**env, **extended}
-                                if extended == {'?x': 'emam', '?y': 'thabet'}:
-                                    import ipdb; ipdb.set_trace()
+                                # if extended == {'?x': 'emam', '?y': 'thabet'}:
+                                #     import ipdb; ipdb.set_trace()
                                 # extended = Frame(extended, env)
                                 dprint("+unified f {} q {} and env now {}".format(f2, q, extended))
 
@@ -242,12 +267,13 @@ def runquery(kb, q, mainenv=None):
                                 # dprint("options for nextgoal: {}".format(options))
                                 # dprint("extended: {}, nextgoal {} ".format(extended, nextgoal))
                                 # import ipdb; ipdb.set_trace()
-                                # for optenv in options:
-                                for potential_sol in ask(kb, nextgoal, extended, depth+1):
-                                    # dprint("potential: ", potential_sol)
-                                    # if AndQ.satisfy(kb, rewritten_query):
-                                        # print("satisfied..")
-                                    yield potential_sol
+                                optenvs = list(ask_simple(kb, nextgoal))
+                                for optenv in optenvs:
+                                    for potential_sol in ask(kb, nextgoal, {**optenv, **extended}, depth+1):
+                                        # dprint("potential: ", potential_sol)
+                                        # if AndQ.satisfy(kb, rewritten_query):
+                                            # print("satisfied..")
+                                        yield potential_sol
 
 
 
