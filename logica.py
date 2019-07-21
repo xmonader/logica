@@ -1,4 +1,5 @@
 import copy
+import inspect
 
 DEPTH_LIMIT = 100
 def isvar(x):
@@ -181,8 +182,14 @@ def runquery(kb, q, mainenv=None):
 
 def funinfo(fun):
     def wrapper(*args, **kwargs):
-        print("\n\n======={}=======\n\n".format(fun.__code__.co_name))
+        print("\n\n### {} \n\n".format(fun.__code__.co_name))
+        print('```python')
+        print(inspect.getsource(fun))
+        print('```')
+        print('```')
         fun(*args, **kwargs)
+        print('```')
+
     return wrapper
 
 @funinfo
