@@ -1,18 +1,69 @@
+import copy
+
 DEPTH_LIMIT = 100
 def isvar(x):
     if isinstance(x, str):
         return x.startswith("?")
     return False
 
+class Q:
+    def __init__(self, *qs):
+        self.qs = list(qs)
+
+    __str__ = lambda self: "({})".format(self.qs)
+    
+    def consumed(self):
+
+        subqconsumed = all(q.consumed() for q in self.qs if isinstance(q, Q))
+        sublconsumed = all(l == [] for l in self.qs if isinstance(l, list))
+        
+        if subqconsumed and sublconsumed:
+            return True
+        return False
+
+    def rewrite_vars(self, env):
+        res = copy.deepcopy(self)
+        for qidx, q in enumerate(res.qs):
+            if isinstance(q, list):
+                res.qs[qidx] = rename_vars(q, env)
+            else:
+                res.qs[qdix] = q.rewrite_vars(env)
+        return res
+
+class AndQ(Q):
+    __str__ = lambda self: "AndQ({})".format(self.qs)
+
+    @staticmethod
+    def satisfy(kb, query):
+        facts = kb.get('facts', [])
+        # print("satisfy: facts {} query {} ".format(kb, query) )
+        for el in query.qs:
+            if isinstance(el, list):
+                if el not in facts:
+                    return False
+            elif isinstance(el, Q):
+                if not el.__class__.satisfy(kb, el):
+                    return False
+        return True
+
+
+class OrQ(Q):
+    __str__ = lambda self: "OrQ({})".format(self.qs)
+
+class NotQ(Q):
+    __str__ = lambda self: "NotQ({})".format(self.qs)
+
+
 def unify(xs, ys, env=None):
     # [3 a 5] [y 7 z]  => {y:3 a:7 z:5}
     # 
+    # print("unifying xs {} and ys {} ".format(xs, ys))
     env = env or {}
     if len(xs) != len(ys):
-        return False
+        return {}
     elif xs == ys == []:
         return env
-
+    
     lhead = xs[0]
     rhead = ys[0]
     # print("UNIFYING X0: {} Y0: {}, ENV: {}".format(xs[0], ys[0],env))
@@ -38,10 +89,33 @@ def rename_vars(clause, env):
     newclause = clause[:]
     for i,el in enumerate(clause):
         if el in env:
-            newclause[i] = env[el]
+            newclause[i] = env.get(el, el)
     return newclause
 
-def query(kb, queries, mainenv=None):
+class Frame:
+    def __init__(self, env, parent=None):
+        self.env = env
+        self.parent = parent or {}
+        self.parent = parent
+    
+    def get(self, k, default):
+        if k in self.env:
+            return self.env[k]
+        else:
+            if self.parent:
+                return self.parent.get(k, default)
+
+    def __setitem__(self, i, v):
+        self.env[i] = v
+    def __getitem__(self, i):
+        return self.get(i, None)
+    
+    def __contains__(self, v):
+        return self.get(v, None) is not None
+
+    def __str__(self):
+        return "<{} and parent: {}>".format(self.env, self.parent)
+def runquery(kb, q, mainenv=None):
     main = mainenv or {}
     originalfacts = kb.get('facts', [])
     originalrules = kb.get('rules', [])
@@ -67,7 +141,9 @@ def query(kb, queries, mainenv=None):
             ["loves", "azmy", "go"],
         ],
         'rules': [
-            ['alien', '?x',  ['man' '?x']]
+            
+            [ ['mortal', '?x'], ['man', '?x'] ],
+            [ ['mortal, '?x'],  ['woman', '?x']]
         ]
 
     }
@@ -105,68 +181,145 @@ def query(kb, queries, mainenv=None):
         rules = kb.get('rules', [])
         return all(el in facts for el in resolved)
 
-
-    def ask(kb, queries, env=None, depth=0, originalqueries_len=0, unified=0):
+    def ask_simple(kb, query, env=None, depth=0):
+        
         env = env or {}
-        # print(depth*"\t\t", "  in ask => env: {} depth {} queries_len {}".format(env, depth, originalqueries_len))
-        # if depth == DEPTH_LIMIT or depth + 1 == originalqueries_len or not queries:
-        if not queries:
-            # print("\t\t"*depth, " returning now ", env, depth, originalqueries_len)
-            yield env
-    
         facts = kb.get('facts', [])
         rules = kb.get('rules', [])
-        # query -> choices { ['man', '?x'] : [{'?x':'ahmed'}, {'?x':'jo'} }
+
         for fact in facts:
-            for cidx, clause in enumerate(queries):
-                e = unify(fact, clause, env)
-                if e:
-                    renamed_clauses = [rename_vars(q, e) for q in queries]
-                    for potential_solution in ask(kb, renamed_clauses[cidx+1:], e):
-                        # print(" potentil solution: ", potential_solution)
-                        if satisfy(kb, renamed_clauses):
-                            yield potential_solution             
+            if isinstance(query, AndQ):
+                subqueries = query.qs
+                for qidx, q in enumerate(subqueries):
+                    e = unify(fact, q)
+                    if e:
+                        yield e
+        
+    def ask(kb, query, env=None, depth=0):
+        def dprint(*m):
+            print("\t"*depth, *m)
 
-    print("MAIN", " queries: {} env: {} ".format(queries, mainenv))
+        env = env or {}
+        facts = kb.get('facts', [])
+        rules = kb.get('rules', [])
+        for fact in facts:
+            # print("fact :" , fact)
+            # print("Query: ", query)
+            
+            if isinstance(query, AndQ):
+                subqueries = query.qs
+                for qidx, q in enumerate(subqueries):
+                    if isinstance(q, list):
+                        if fact == q:
+                            yield {}, True
+                        extended = unify(fact, q, env)
+                        if not extended:
+                            yield {}, False
+                        if extended:
+                            extended = {**env, **extended}
+                            rewritten_query = query.rewrite_vars(extended)
 
-    results = list(ask(kb, queries, mainenv, 0, len(queries)))
+                            nextgoal = AndQ(*rewritten_query.qs[qidx+1:])
+                            if AndQ.satisfy(kb, rewritten_query):
+                                yield extended, True
+                            optenvs = list(ask_simple(kb, nextgoal))
+                            for optenv in optenvs:
+                                for potential_sol, matches in ask(kb, nextgoal, {**optenv, **extended}, depth+1):
+                                    yield potential_sol, matches
+
+            if isinstance(query, OrQ):
+                subqueries = query.qs
+                for qidx, q in enumerate(subqueries):
+                    if isinstance(q, list):
+                        extended = unify(fact, q, env)
+                        if extended:
+                            yield extended, True
+
+            # if isinstance(query, NotQ):
+            #     subqueries = query.qs
+            #     resQ = OrQ()
+            #     for qidx, q in enumerate(subqueries):
+            #         if isinstance(q, list):
+            #             # import ipdb; ipdb.set_trace()
+            #             res = runquery(kb, AndQ(q))
+            #             for e,m in res:
+            #                 print("e, m : ", e, m)
+            #                 if m:
+            #                     break
+            #             else:
+            #                 print(resQ)
+            #                 resQ.qs.append(q)
+            #     print(resQ)
+            #     for e, m in runquery(kb, resQ, env):
+            #         yield e, m
+            
+    print("MAIN", " query: {} env: {} ".format(q, mainenv))
+
+    results = list(ask(kb, q, mainenv))
     uniq_results = []
     for r in results:
-        if r not in uniq_results:
+        if r[1] and r not in uniq_results:
+            # env, matches or not.
             uniq_results.append(r)
     return uniq_results
 
+
+def funinfo(fun):
+    def wrapper(*args, **kwargs):
+        print("\n\n======={}=======\n\n".format(fun.__code__.co_name))
+        fun(*args, **kwargs)
+    return wrapper
+
+@funinfo
 def test_unify_simple():
     l1 = [3, '?a', 5]
     l2 = ['?y', 7, '?z']
     print(unify(l1, l2))
 
+@funinfo
 def test_unify_simple_with_env():
     l1 = [3, '?a', '?z']
     l2 = ['?y', 7, '?z']
     print(unify(l1, l2, {'?z':16}))
 
+@funinfo
 def test_unify_complex():
     l1 = [ [3,5,6], '?x', ['?z', 5]]
     l2 = [ '?j', 11, [24, 5]]
     print(unify(l1, l2))
 
-
+@funinfo
 def test_unify_very_complex():
     l1 = ['?x', [5, '?z'], [0,[[4,5], 19]]]
     l2 = [ 3, [5, 26], [0, ['?k', 19]] ]
     print(unify(l1, l2))
 
+@funinfo
 def test_dontunify_complex():
     l1 = [ [3,5,6], '?x', [24, 5]]
     l2 = [ '?j', 11]
     print(unify(l1, l2))
 
+@funinfo
 def test_dontunify_simple():
     l1 = [ 4, '?j']
     l2 = [ '?j', 7]
     print(unify(l1, l2))
 
+@funinfo
+def test_query_simple0():
+    kb = {
+        'facts': [ 
+            ["man", "ahmed"],
+            ["man", "jo"],
+            ["man", "prince"],
+        ]
+    }
+
+    q = AndQ( ["man", "ahmed"] )
+    print(runquery(kb, q))
+
+@funinfo
 def test_query_simple():
     kb = {
         'facts': [ 
@@ -176,9 +329,10 @@ def test_query_simple():
         ]
     }
 
-    queries = [["man", "?name"],]
-    print(query(kb, queries))
+    q = AndQ( ["man", "?x"] )
+    print(runquery(kb, q))
 
+@funinfo
 def test_query_simple2():
     kb = {
         'facts': [ 
@@ -188,10 +342,11 @@ def test_query_simple2():
             ["loves", "ahmed", "python"],
         ]
     }
-    queries = [["man", "?name"], ["loves", "?name", "python"]]
-    print(query(kb, queries))
+    q = AndQ(["man", "?name"], ["loves", "?name", "python"])
+    print(runquery(kb, q))
 
 
+@funinfo
 def test_query_simple3():
     kb = {
         'facts': [ 
@@ -202,12 +357,13 @@ def test_query_simple3():
             ["loves", "jo", "gevent"]
         ]
     }
-    queries = [["man", "?name"], ["loves", "?name", "python"]]
-    print(query(kb, queries))
-    queries = [["man", "?name"], ["loves", "?name", "gevent"]]
-    print(query(kb, queries))
+    q = AndQ(["man", "?name"], ["loves", "?name", "python"])
+    print(runquery(kb, q))
+    q = AndQ(["man", "?name"], ["loves", "?name", "gevent"])
+    print(runquery(kb, q))
 
 
+@funinfo
 def test_query_simple4():
     kb = {
         'facts': [ 
@@ -221,11 +377,12 @@ def test_query_simple4():
             ["loves", "jo", "python"],
         ]
     }
-    queries = [["man", "?name"], ["loves", "?name", "python"], ["loves", "?name", "nour"]]
-    print(query(kb, queries))
+    q = AndQ( ["man", "?name"], ["loves", "?name", "python"], ["loves", "?name", "nour"])
+    print(runquery(kb, q))
 
 
 
+@funinfo
 def test_query_simple5():
     kb = {
         'facts': [ 
@@ -239,12 +396,131 @@ def test_query_simple5():
             ["loves", "jo", "python"],
         ]
     }
-    # queries = [["man", "?name"], ["loves", "?name", "python"], ["loves", "?name", "?girl"], ["woman", "?girl"]]
-    # print(query(kb, queries))
-    queries = [["man", "?name"], ["loves", "?name", "?girl"], ["woman", "?girl"]]
-    print(query(kb, queries))
+
+    q = AndQ(["man", "?name"], ["woman", "?girl"], ["loves", "?name", "?girl"])
+    print(runquery(kb, q))
+
+    # BROKEN AGAIN..
+    q = AndQ(["man", "?name"], ["loves", "?name", "?girl"], ["woman", "?girl"]) 
+    print(runquery(kb, q))
 
 
+@funinfo
+def test_query_simple6():
+    ## HIDDEN VARIABLES..
+    kb = {
+        'facts': [ 
+            ["father", "functor", "monad"],
+            ["father", "monoid", "functor"],
+        ]
+    }
+    q = AndQ(["father", "?x", "?y"], ["father", "?y", "?z"])
+    print(runquery(kb, q))
+
+@funinfo
+def test_query_simple7():
+    ## HIDDEN VARIABLES..
+    kb = {
+        'facts': [ 
+            ["father", "emam", "thabet"],
+            ["father", "thabet", "ahmed"],
+            ["father", "thabet", "omnia"],
+        ]
+    }
+    q = AndQ(["father", "?x", "?y"], ["father", "?y", "?z"])
+    print(runquery(kb, q))
+
+@funinfo
+def test_query_simple_or1():
+    ## HIDDEN VARIABLES..
+    kb = {
+        'facts': [ 
+            ["father", "emam", "thabet"],
+            ["mother", "thabet", "zainab"],
+        ]
+    }
+    q = OrQ(["father", "?a", "?b"], ["mother", "?c", "?d"])
+    print(runquery(kb, q))
+
+@funinfo
+def test_query_simple_or2():
+
+    kb = {
+        'facts': [ 
+            ["woman", "nour"],
+            ["man", "ahmed"],
+            ["man", "jo"],
+            ["man", "prince"],
+            ["loves", "ahmed", "python"],
+            ["loves", "ahmed", "nour" ],
+            ["loves", "jo", "gevent"],
+            ["loves", "jo", "python"],
+            ["eats", "jo", "chocolate"]
+        ]
+    }
+
+    q = OrQ(["loves", "?name", "python"], ["eats", "?name", "chocolate"])
+    print(runquery(kb, q))
+
+# @funinfo
+# def test_query_simple_not1():
+#     kb = {
+#         'facts': [ 
+#             ["father", "emam", "thabet"],
+#             ["father", "emam", "tharwat"],
+#             ["mother", "thabet", "zainab"],
+#         ]
+#     }
+#     q = NotQ(["father", "emam", "thabet"])
+#     print(runquery(kb, q))
+
+@funinfo
+def test_simple_rule():
+    kb = {
+        'facts': [ 
+            ["woman", "nour"],
+            ["man", "ahmed"],
+            ["man", "jo"],
+            ["man", "prince"],
+            ["loves", "ahmed", "python"],
+            ["loves", "ahmed", "nour" ],
+            ["loves", "jo", "gevent"],
+            ["loves", "jo", "python"],
+        ],
+        'rules':
+            [
+                [ ["mortal", "?x"], ["man", "?x"]],
+                [ ["mortal", "?x"], ["woman", "?x"]],
+            ]
+    }
+    queries = [ ["mortal", "ahmed"] ]
+    print(runquery(kb, queries))
+
+
+@funinfo
+def test_simple_rule2():
+    kb = {
+        'facts': [ 
+            ["woman", "nour"],
+            ["man", "ahmed"],
+            ["man", "jo"],
+            ["man", "prince"],
+            ["loves", "ahmed", "python"],
+            ["loves", "ahmed", "nour" ],
+            ["loves", "jo", "gevent"],
+            ["loves", "jo", "python"],
+        ],
+        'rules':
+            [
+                [ ["mortal", "?x"], ["man", "?x"]],
+                [ ["mortal", "?x"], ["woman", "?x"]],
+            ]
+    }
+    queries = [ ["mortal", "?x"], ["loves", "?x", "gevent"] ]
+    print(runquery(kb, queries))
+
+
+@funinfo
 def test_query_complex():
     kb = {
         'facts': [
@@ -265,10 +541,6 @@ def test_query_complex():
             ["man", "azmy"],
             ["loves", "azmy", "go"],
         ],
-        'rules': [
-            ['alien', '?x',  ['man' '?x']]
-        ]
-
     } 
 
 
@@ -312,7 +584,7 @@ def test_query_complex():
     ]
     for q in [query1, query2, query3, query4, query5, query6, query7, query8, query9, query10]:
         print("Query: ", q)
-        print(query(kb, q))
+        print(runquery(kb, q))
 
 def main():
     test_unify_simple()
@@ -321,13 +593,23 @@ def main():
     test_unify_very_complex()
     test_dontunify_simple()
     test_dontunify_complex()
+    test_query_simple0()
     test_query_simple()
     test_query_simple2()
     test_query_simple3()
     test_query_simple4()
     test_query_simple5()
+    test_query_simple6()
+    test_query_simple7()
 
-    test_query_complex()
+    test_query_simple_or1()
+    test_query_simple_or2()
+
+    # test_query_simple_not1()
+    # test_query_complex()
+    # test_simple_rule()
+    # test_simple_rule2()
+
 
 if __name__ == '__main__':
     main()
